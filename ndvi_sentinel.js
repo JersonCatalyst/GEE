@@ -1,25 +1,25 @@
 // 1. LOAD AREA OF INTEREST (AOI) =====
 // Define the area to analyze (imported as an Earth Engine asset)
-var Aoi = ee.FeatureCollection("users/your_username/your_asset_name");
+var aoi = ee.FeatureCollection("users/your_username/your_asset_name");
 
 // 2. SET ANALYSIS YEAR =====
-// Choose the year for NDVI computation (e.g., 2018)
-var year = 2018;
+// Choose the year for NDVI computation (e.g., 2025)
+var year = 2025;
 
 // 3. FUNCTION TO COMPUTE JUNE NDVI =====
 /**
  * Computes NDVI for June of a given year.
  * @param {number} year - The year of analysis.
- * @returns {ee.Image} NDVI image clipped to ROI.
+ * @returns {ee.Image} NDVI image clipped to aoi.
  */
 function getJuneNDVI(year) {
   // Define date range (June 1 - June 30)
   var start = ee.Date.fromYMD(year, 6, 1);
   var end = ee.Date.fromYMD(year, 6, 30);
 
-  // Load Sentinel-2 imagery, filter by ROI, date, and cloud cover
+  // Load Sentinel-2 imagery, filter by aoi, date, and cloud cover
   var collection = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED")
-    .filterBounds(roi)
+    .filterBounds(aoi)
     .filterDate(start, end)
     .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
     // Apply cloud & shadow masking using Scene Classification Layer (SCL)
@@ -32,7 +32,7 @@ function getJuneNDVI(year) {
     });
 
   // Create median composite and compute NDVI
-  var composite = collection.median().clip(roi);
+  var composite = collection.median().clip(aoi);
   var ndvi = composite.normalizedDifference(['B8', 'B4']).rename('NDVI');
   return ndvi.set('year', year); // Attach year as metadata
 }
@@ -58,7 +58,7 @@ var classified = ndviImage.gte(ndviClasses[0])
   .add(ndviImage.gte(ndviClasses[3]))
   .add(ndviImage.gte(ndviClasses[4]))
   .subtract(1)
-  .clip(roi)
+  .clip(aoi)
   .rename('NDVI_class');
 
 // Set visualization parameters
@@ -70,7 +70,7 @@ var classVisParams = {
 };
 
 // ===== 6. VISUALIZE RESULTS =====
-Map.centerObject(roi, 8); // Center map on ROI
+Map.centerObject(aoi, 8); // Center map on aoi
 Map.addLayer(ndviImage, ndviVisParams, 'NDVI June ' + year);
 Map.addLayer(classified, classVisParams, 'NDVI Classes ' + year);
 
@@ -139,7 +139,7 @@ Export.image.toDrive({
   description: 'NDVI_June_' + year,
   folder: 'NDVI_June',
   fileNamePrefix: 'NDVI_June_' + year,
-  region: roi.geometry(),
+  region: aoi.geometry(),
   scale: 10,
   maxPixels: 1e13
 });
@@ -150,7 +150,7 @@ Export.image.toDrive({
   description: 'NDVI_Classes_June_' + year,
   folder: 'NDVI_June',
   fileNamePrefix: 'NDVI_Classes_June_' + year,
-  region: roi.geometry(),
+  region: aoi.geometry(),
   scale: 10,
   maxPixels: 1e13
 });
